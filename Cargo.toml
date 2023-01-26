@@ -2,5 +2,13 @@
 name = "mentori"
 version = "0.1.0"
 edition = "2021"
+authors = ["Daisuke Satoh <dsatoh@kamonohashi.co.jp>"]
+description = "Normalize REF/ALT notation of Variant Call Format (VCF)."
 
 [dependencies]
+stderrlog = "0.5.4"
+log = "0.4"
+rust-htslib = { version = "0.40.2", default-features = false }
+structopt = "0.3"
+strum = { version = "0.24.1", features = ["derive"] }
+thiserror = "1.0"
