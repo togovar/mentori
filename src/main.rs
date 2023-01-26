@@ -2,7 +2,6 @@ use mentori::normalize;
 use rust_htslib::bcf;
 use rust_htslib::bcf::Read;
 use std::collections::HashMap;
-use std::hash::Hash;
 use std::path::PathBuf;
 use std::str;
 use structopt::clap::crate_description;
