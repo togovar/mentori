@@ -47,71 +47,79 @@ pub fn main() {
     };
 
     if options.check {
-        let mut pos = 0;
-        let mut map: Cache = HashMap::new();
-
-        for r in vcf.records() {
-            let record = r.unwrap();
-
-            if record.allele_count() > 2 {
-                continue;
-            }
-
-            let alleles = record.alleles();
-
-            if let Some((reference, alternate)) = alleles.split_first() {
-                if pos != record.pos() {
-                    print_duplicates(record.header(), &mut map);
-                    map.clear();
-                }
-
-                let key = (
-                    record.rid().unwrap(),
-                    record.pos(),
-                    String::from_utf8(reference.to_vec()).unwrap(),
-                    String::from_utf8(alternate[0].to_vec()).unwrap(),
-                );
-
-                if !map.contains_key(&key) {
-                    map.insert(key.to_owned(), Vec::new());
-                }
-
-                let vec = map.get_mut(&key).unwrap();
-                vec.push((
-                    record.rid().unwrap(),
-                    record.pos(),
-                    String::from_utf8(record.id()).unwrap(),
-                    String::from_utf8(reference.to_vec()).unwrap(),
-                    String::from_utf8(alternate[0].to_vec()).unwrap(),
-                ));
-
-                pos = record.pos();
-            }
-        }
-
-        print_duplicates(vcf.header(), &mut map);
+        check(&mut vcf);
     } else {
-        let header = bcf::Header::from_template(vcf.header());
-        let mut output = bcf::Writer::from_stdout(&header, true, bcf::Format::Vcf).unwrap();
+        run(&mut vcf)
+    }
+}
 
-        for r in vcf.records() {
-            let mut record = r.unwrap();
+fn run(vcf: &mut bcf::Reader) {
+    let header = bcf::Header::from_template(vcf.header());
+    let mut output = bcf::Writer::from_stdout(&header, true, bcf::Format::Vcf).unwrap();
 
-            if normalize(&mut record).is_ok() {
-                output.write(&record).unwrap_or(());
-            }
+    for r in vcf.records() {
+        let mut record = r.unwrap();
+
+        if normalize(&mut record).is_ok() {
+            output.write(&record).unwrap_or(());
         }
     }
 }
 
+fn check(vcf: &mut bcf::Reader) {
+    let mut pos = 0;
+    let mut map: Cache = HashMap::new();
+
+    for r in vcf.records() {
+        let record = r.unwrap();
+
+        if record.allele_count() > 2 {
+            continue;
+        }
+
+        let alleles = record.alleles();
+
+        if let Some((reference, alternate)) = alleles.split_first() {
+            if pos != record.pos() {
+                print_duplicates(record.header(), &mut map);
+                map.clear();
+            }
+
+            let key = (
+                record.rid().unwrap(),
+                record.pos(),
+                String::from_utf8(reference.to_vec()).unwrap(),
+                String::from_utf8(alternate[0].to_vec()).unwrap(),
+            );
+
+            if !map.contains_key(&key) {
+                map.insert(key.to_owned(), Vec::new());
+            }
+
+            let vec = map.get_mut(&key).unwrap();
+            vec.push((
+                record.rid().unwrap(),
+                record.pos(),
+                String::from_utf8(record.id()).unwrap(),
+                String::from_utf8(reference.to_vec()).unwrap(),
+                String::from_utf8(alternate[0].to_vec()).unwrap(),
+            ));
+
+            pos = record.pos();
+        }
+    }
+
+    print_duplicates(vcf.header(), &mut map);
+}
+
 fn print_duplicates(header: &bcf::header::HeaderView, map: &mut Cache) {
-    let dups = map
+    let duplicates = map
         .iter()
-        .filter(|(_k, v)| v.len() > 1)
+        .filter(|(_, v)| v.len() > 1)
         .collect::<HashMap<_, _>>();
 
-    for dup in dups.values() {
-        for r in dup.iter() {
+    for records in duplicates.values() {
+        for r in records.iter() {
             println!(
                 "{}\t{}\t{}\t{}\t{}",
                 str::from_utf8(header.rid2name(r.0).unwrap()).unwrap(),
